@@ -1,0 +1,394 @@
+ <!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="style.css">
+		<meta charset="utf-8">
+		<meta HTTP-EQUIV="EXPIRES" CONTENT="-1">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Fortnite 2D</title>
+		<!--JQuery-->
+		<script src="lib/jquery-3.3.1.min.js"></script>
+		<!--React-->
+		<script src="lib/react.js" > </script>
+		<script src="lib/react-dom.js" > </script>
+		<script src="lib/babel.min.js" > </script>
+		<!--Model-->
+		<script src="pair.js" > </script>
+		<!--Controller/View-->
+		<script language="javascript" src="controller.js" > </script>
+		<script language="javascript" src="viewAssets.js" > </script>
+		<script language="javascript" src="view.js" > </script>
+
+	</head>
+	<body >
+		<title >FORTNITE 2D</title>
+		<div id="ftd"></div>
+		<!--React Bootstrap Framework-->
+		<script src="https://unpkg.com/react/umd/react.production.min.js" ></script> 
+		<script src="https://unpkg.com/react-dom/umd/react-dom.production.min.js" ></script>
+		<script src="https://unpkg.com/react-bootstrap@next/dist/react-bootstrap.min.js" ></script>
+		<script type="text/babel">
+//--LOGIN------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+			class Login extends React.Component {
+				constructor(props) {
+					super(props);
+					this.state = { 
+						username : "",
+						password : ""
+					}
+					this.changeUsername = this.changeUsername.bind(this);
+					this.changePassword = this.changePassword.bind(this);
+					this.handleSubmit = this.handleSubmit.bind(this);
+				}				
+				componentDidMount() {
+					setInfo("",""); //Clears stored login information to controller
+				}
+				changeUsername(e){
+					this.setState({username: e.target.value});
+				}
+				changePassword(e){
+					this.setState({password: e.target.value});
+				}
+				handleSubmit(e) { 
+					$.ajax({ //Ajax call check if username and password are valid
+						method: "GET", 
+						url: `/login/${this.state.username}/pass/${this.state.password}`
+					})
+					.done((data) => {
+						setInfo(this.state.username, this.state.password); // Store login information to controller
+						this.props.toMenu(e);	//Go to menu screen
+					})
+					.fail(alertError);
+					e.preventDefault();
+				}
+				render(props){
+					return(
+						<div className = "loginPage" id = "ui_login">
+							<ReactBootstrap.Form className = "login" onSubmit={this.handleSubmit}>
+								<h2>Login</h2><br/>
+								<p>Username</p>
+								<ReactBootstrap.Form.Control value={this.state.username} placeholder='username' onChange={this.changeUsername} pattern="[0-9a-zA-Z]+" title="Alpha-numeric" type="text" required/>
+								<p>Password</p>
+								<ReactBootstrap.Form.Control value={this.state.password} placeholder='password' onChange={this.changePassword} pattern="[0-9a-zA-F]+" title="Alpha-numeric" type="password" required/><br/>
+								<ReactBootstrap.Button className ='login' type="submit">LOGIN</ReactBootstrap.Button><br className = "space"/>
+								<ReactBootstrap.Button className ='login' onClick = {this.props.toRegister}>REGISTER</ReactBootstrap.Button><br/>
+							</ReactBootstrap.Form>
+						</div>
+					);
+				}
+			}
+//--Registration----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+			class Register extends React.Component {
+				constructor(props) {
+					super(props);
+					this.state = { 
+						username : "",
+						password : "",
+						age : "18",
+						color: "coral",
+					}
+					this.changeUsername = this.changeUsername.bind(this);
+					this.changePassword = this.changePassword.bind(this);
+					this.changeAge = this.changeAge.bind(this);
+					this.changeColor = this.changeColor.bind(this);
+					this.handleSubmit = this.handleSubmit.bind(this);
+				}
+				changeUsername(e){
+					this.setState({username: e.target.value});
+				}
+				changePassword(e){
+					this.setState({password: e.target.value});
+				}
+				changeAge(e){
+					this.setState({age: e.target.value});
+				}
+				changeColor(e){
+					this.setState({color: e.target.value});
+				}
+				handleSubmit(e) {
+					$.ajax({ //Ajax call send registration info for login
+						method: "PUT",
+						url: `/register/${this.state.username}
+							/pass/${this.state.password}
+							/age/${this.state.age}
+							/colour/${this.state.color}`
+					})
+					.done((data) => {
+						this.props.toLogin(); //Go to Login screen
+						alert(`Register ${this.state.username} successful`);
+					})
+					.fail(alertError);
+					e.preventDefault();
+					}
+				render(props){
+					return(
+						<div className = "loginPage" id = "ui_login">
+							<ReactBootstrap.Form className = "login" onSubmit={this.handleSubmit}>
+								<h2>Register</h2><br/>
+								<p>Username</p>
+								<ReactBootstrap.Form.Control value={this.state.username} placeholder='username' onChange={this.changeUsername} pattern="[0-9a-zA-Z]+" title="Alpha-numeric" type="text" required/>
+								<p>Password</p>
+								<ReactBootstrap.Form.Control value={this.state.password} placeholder='password' onChange={this.changePassword} pattern="[0-9a-zA-F]+" title="Alpha-numeric" type="password" required/><br/>
+								<p>Age</p>
+								<p>{this.state.age}</p>
+								<ReactBootstrap.Form.Control type="range" defaultValue = {this.state.age} onChange={this.changeAge} min="18" max = "130" step="1" required/>
+								<p>Player Colour</p>
+								<ReactBootstrap.Form.Control as="select" onChange={this.changeColor}>
+									<option value="coral" selected >Red</option>
+									<option value="violet">Purple</option>
+									<option value="cyan">Blue</option>
+									<option value="lime">Green</option>
+									<option value="orange">orange</option>
+									<option value="pink">Pink</option>
+									<option value="yellow">Yellow</option>
+								</ReactBootstrap.Form.Control><br/>
+								<ReactBootstrap.Button className = "login" type="submit">REGISTER</ReactBootstrap.Button><br/>
+								<ReactBootstrap.Button className = "login" onClick = {this.props.toLogin}>LOGIN</ReactBootstrap.Button><br/>
+							</ReactBootstrap.Form>
+						</div>
+					);
+				}
+			}
+//--Menu------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+			class Menu extends React.Component{
+				constructor(props) {
+					super(props);
+					this.GameStart = this.GameStart.bind(this);
+				}
+				GameStart(e){
+					startGame(); //Controller call to start game instance
+					this.props.toPlay(e); //Go to game screen
+				}
+				render(props){
+					return(
+						<div id="ui_menu">
+							<div id="menuStuff">
+								<ReactBootstrap.Button onClick = {this.props.toProfile}>Profile</ReactBootstrap.Button>
+								<ReactBootstrap.Button onClick = {this.props.toScore}>Leader Board</ReactBootstrap.Button>
+								<ReactBootstrap.Button onClick = {this.props.toLogin}>Logout</ReactBootstrap.Button>
+							</div>
+							<ReactBootstrap.Button id="menuToGame" onClick = {this.GameStart}>PLAY</ReactBootstrap.Button>
+						</div>
+					);
+				}
+			}
+//--Score-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+			class Score extends React.Component{
+				constructor(props) {
+					super(props);
+				}
+				componentDidMount() {
+					$.ajax({ // Ajax call to get top scores for leader board
+						method: "GET", 
+						url: `/score/`
+					})
+					.done((data) => {
+						let innerHTML = '';
+						for (let i=0; i<data.length; i++){	//Filling table
+							let player = data[i];
+							innerHTML += `<tr>
+								<td>${i+1}</td>
+								<td>${player['username']}</td>
+								<td>${player['kills']}</td>
+								<td>${player['deaths']}</td>
+								<td>${player['damage']}</td>
+							</tr>`
+							$('#scoreRows').html(innerHTML);
+						}
+					})
+					.fail(alertError);
+				}
+				render(props){
+					return(
+						<div id="ui_scores">
+							<div id='flexDiv'>
+								<ReactBootstrap.Table>
+									<thead>
+										<tr>
+											<th>Rank</th>
+											<th>Username</th>
+											<th>Kills</th>
+											<th>Deaths</th>
+											<th>Damage</th>
+										</tr>
+									</thead>
+									<tbody id="scoreRows"></tbody>
+								</ReactBootstrap.Table>
+							<ReactBootstrap.Button onClick = {this.props.toMenu}>Menu</ReactBootstrap.Button>
+							</div>
+						</div>
+					);
+				}
+			}
+//--Profile---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+			class Profile extends React.Component{
+				constructor(props) {
+					super(props);
+					this.state = {
+						username : getUsername(),
+						password : getPassword(),
+						age : "",
+						color : ""
+					}
+					this.changePassword = this.changePassword.bind(this);
+					this.changeAge = this.changeAge.bind(this);
+					this.changeColor = this.changeColor.bind(this);
+					this.handleSubmit = this.handleSubmit.bind(this);
+					this.handleDelete = this.handleDelete.bind(this);
+				}
+				componentDidMount() {
+					$.ajax({ //Ajax call to get user info prefill
+						method: "GET", 
+						url: `/all/${this.state.username}/pass/${this.state.password}`
+					})
+					.done((data) => {
+						this.setState({
+							age: data['age'],
+							color: data["colour"]
+						});
+					})
+					.fail(alertError);
+				}
+				changePassword(e){
+					this.setState({password: e.target.value});
+				}
+				changeAge(e){
+					this.setState({age: e.target.value});
+				}
+				changeColor(e){
+					this.setState({color: e.target.value});
+				}
+				handleDelete(e){
+					$.ajax({ //Ajax call to delete user account
+						method: "DELETE", 
+						url: `/AccDelete/${this.state.username}/password/${this.state.password}`
+					})
+					.done((data) => {
+						alert("Account Deleted");
+						this.props.toLogin(e); //Go to login screen
+					}).fail(alertError);
+				}
+				handleSubmit(e){
+					$.ajax({ //Ajax call to change user info
+						method: "PUT", 
+						url: `/update/${this.state.username}/
+							pass/${this.state.password}/
+							newPass/${this.state.password}/
+							age/${this.state.age}/
+							colour/${this.state.color}/`
+					})
+					.done((data) => alert(`${username} updated successfully`))
+					.fail(alertError);
+					e.preventDefault();
+				}
+				render(props){
+					return(
+						<div className = "profilePage" id = "ui_login">
+							<ReactBootstrap.Form className = "profile" onSubmit={this.handleSubmit}>	
+								<h2>{this.state.username}'s profile</h2><br/>
+								<p>Password</p>
+								<ReactBootstrap.Form.Control value={this.state.password} placeholder='password' onChange={this.changePassword} pattern="[0-9a-zA-F]+" title="Alpha-numeric" type="password" required/><br/>
+								<p>Age</p>
+								<p>{this.state.age}</p>
+								<ReactBootstrap.Form.Control type="range" defaultValue = {this.state.age} onChange={this.changeAge} min="18" max = "130" step="1" required/>
+								<p>Player Colour</p>
+								<ReactBootstrap.Form.Control as="select" onChange={this.changeColor} value = {this.state.color}>
+									<option value="coral">Red</option>
+									<option value="violet">Purple</option>
+									<option value="cyan">Blue</option>
+									<option value="lime">Green</option>
+									<option value="orange">orange</option>
+									<option value="pink">Pink</option>
+									<option value="yellow">Yellow</option>
+								</ReactBootstrap.Form.Control><br/>
+								<ReactBootstrap.Button type="submit">Update</ReactBootstrap.Button><br/>
+								<ReactBootstrap.Button onClick = {this.props.toMenu}>Menu</ReactBootstrap.Button>
+							</ReactBootstrap.Form><br/>
+							<ReactBootstrap.Button className="delete" onClick = {this.handleDelete}>Delete Account</ReactBootstrap.Button>
+						</div>
+					);
+				}
+			}
+//--Game------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+			class Game extends React.Component{
+				constructor(props) {
+					super(props);
+				}
+				componentDidMount() {
+					const canvas = this.refs.canvas; 
+					setCanvas(canvas); //Pass canvas to view to draw game
+				}
+				render(props){
+					return(
+						<div >
+							<ReactBootstrap.Button id = "menuToGame" onClick = {() => {exitGame(); this.props.toMenu();}}>Menu</ReactBootstrap.Button>
+							<canvas ref="canvas" id = "stage" style={{width: '100%', height: '80vh', border: '5px solid black'}}> </canvas>
+							<div id='keypad'>
+								<button id='upButton'>&uarr;</button>
+								<button id='leftButton'>&larr;</button>
+								<button id='rightButton'>&rarr;</button>
+								<button id='downButton'>&darr;</button>
+								<button id='interactButton'></button>
+							</div>
+						</div>
+					);
+				}
+			}
+//--FTD-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+			class Ftd extends React.Component {
+				constructor(props) {
+					super(props);
+					this.state = { 
+						page : "login"
+					}
+					this.toRegister = this.toRegister.bind(this);
+					this.toLogin = this.toLogin.bind(this);
+					this.toMenu = this.toMenu.bind(this);
+					this.toProfile = this.toProfile.bind(this);
+					this.toPlay = this.toPlay.bind(this);
+					this.toScore = this.toScore.bind(this);
+				}
+				//Naviation between scenes
+				toRegister(e){
+					this.setState({page: "register"});
+				}
+				toLogin(e){
+					this.setState({page: "login"});
+				}
+				toMenu(e){
+					this.setState({page: "menu"});
+				}
+				toProfile(e){
+					this.setState({page: "profile"});
+				}
+				toPlay(e){
+					this.setState({page: "play"});
+				}
+				toScore(e){
+					this.setState({page: "score"});
+				}
+				//Conditional rendering
+				render(){
+					switch(this.state.page){
+						case "login":
+							return (<Login toRegister={this.toRegister} toMenu={this.toMenu}/>);
+						case "register":
+							return (<Register toLogin={this.toLogin}/>);
+						case "menu":
+							return (<Menu toProfile={this.toProfile} toPlay={this.toPlay} toScore={this.toScore} toLogin={this.toLogin}/>);
+						case "play":
+							return (<Game toMenu={this.toMenu}/>);
+						case "profile":
+							return (<Profile toMenu={this.toMenu} toLogin = {this.toLogin}/>);
+						case "score":
+							return (<Score toMenu={this.toMenu}/>);
+						return (<div></div>);
+					}
+				}
+			}
+			ReactDOM.render( <Ftd page = "login" />, document.getElementById("ftd"));
+				
+		</script>
+	</body>
+</html>
+

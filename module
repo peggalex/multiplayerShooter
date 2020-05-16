@@ -1,0 +1,354 @@
+stage = null;
+view = null;
+// make keysDown a set to remove duplicate presses
+keysDown = new Set();
+
+username = "a";
+password = "b";
+
+clicking = false;
+rawX = 0;
+rawY = 0;
+
+alertError = (data,_,error) => alert(`${error}: ${data.responseJSON['error']}`);
+
+function setInfo(username, password){
+	this.username = username;
+	this.password = password;
+}
+
+// leaderboard API call
+function viewScores(){
+	$.ajax({
+		method: "GET", 
+		url: `/score/`
+	})
+	.done((data) => {
+		let innerHTML = '';
+		for (let i=0; i<data.length; i++){
+			let player = data[i];
+			innerHTML += `<tr>
+				<td>${i+1}</td>
+				<td>${player['username']}</td>
+				<td>${player['kills']}</td>
+				<td>${player['deaths']}</td>
+				<td>${player['damage']}</td>
+			</tr>`
+			$('#scoreRows').html(innerHTML);
+		}
+		hideShow('ui_scores');
+	})
+	.fail(alertError);
+}
+
+//delete API call
+function deleteAcc(){
+	$.ajax({
+		method: "DELETE", 
+		url: `/AccDelete/${username}/password/${password}`
+	})
+	.done((data) => {
+		alert("Account Deleted");
+		logout();
+	}).fail(alertError);
+}
+
+// view API call
+function viewProfile() {
+	$.ajax({
+		method: "GET", 
+		url: `/all/${username}/pass/${password}`
+	})
+	.done((data) => {
+		$('#profileHeader').html(`${username}'s profile`);
+
+		$('#profilePassword').val(data['password']);
+		$('#pass').val(data['password']);
+		
+		$('#profileAge').val(data['age']);
+		$(`#profileColour > option[value='${data["colour"]}']`)
+			.attr('selected','true');
+
+		hideShow('ui_profile');
+	})
+	.fail(alertError);
+}
+
+function updateProfile() {
+	$.ajax({
+		method: "PUT", 
+		url: `/update/${username}/
+			pass/${password}/
+			newPass/${ $('#profilePassword').val()}/
+			age/${ $('#profileAge').val()}/
+			colour/${ $('#profileColour').val()}/`
+	})
+	.done((data) => alert(`${username} updated successfully`))
+	.fail(alertError);
+}
+
+//logout with stat reset
+function logout(){
+	username = null;
+	password = null;
+	hideShow('ui_login');
+}
+
+function incrementKills(user){
+	$.ajax({
+		method: "put", 
+		url: `/addKill/${username}/
+			pass/${password}/
+			user/${user}`
+	})
+	.done((data) => console.log(`incremented ${user}'s kills`))
+	.fail(alertError);
+}
+
+function incrementDeaths(user){
+	$.ajax({
+		method: "PUT", 
+		url: `/addDeath/${username}/
+			pass/${password}/
+			user/${user}`
+	})
+	.done((data) => console.log(`incremented ${user}'s deaths`))
+	.fail(alertError);
+}
+
+function addDamage(user, dmg){
+	$.ajax({
+		method: "PUT", 
+		url: `/addDamage/${username}/
+			pass/${password}/
+			user/${user}/
+			dmg/${dmg}/`
+	})
+	.done((data) => console.log(`${user}'s damage + ${dmg}`))
+	.fail(alertError);
+}
+
+async function getUserColour(){
+	return new Promise((resolve) => {
+	
+	$.ajax({
+		method: "GET", 
+		url: `/all/${username}/pass/${password}`
+	})
+	.done((data) => resolve(data['colour']))
+	.fail((data) => () => resolve(alertError()));
+
+	});
+}
+
+function updateScores(){
+	stage.actors.forEach((actor)=>actor.events.forEach((evt)=>{	
+			
+		switch(evt.constructor){
+		
+			case DeathEvent:
+				if (!(evt.killed instanceof NPC)){
+					incrementDeaths(evt.killed.username);
+				}
+				if (!(evt.killer instanceof NPC)){
+					incrementKills(evt.killer.username);
+				}
+				break;
+
+			case HitEvent:
+				if (!(evt.shooter instanceof NPC)){
+					addDamage(
+						evt.shooter.username,
+						evt.dmg
+					);
+				}
+				break;
+		}
+	}));
+}
+
+async function startGame(){
+
+	await loadMap();
+	
+	// add keys to keysDown when pressed,
+	// and remove them when they are released.
+	document.addEventListener('keydown', addKeydown);
+	document.addEventListener('keyup', removeKeydown);
+
+	document.addEventListener('mousemove', hovering); 
+	document.addEventListener('mousedown', handleMousedown);
+	document.addEventListener('mouseup', handleMouseup);
+
+	animationFunc = (time) => {
+		// every frame, see which keys are held down
+		handleKeyPresses()
+		
+		handleFiring();
+
+		stage.step(time);
+		updateScores();
+		drawMap();
+
+		if (!stage.gameOver) {
+			window.requestAnimationFrame(animationFunc);
+		}
+	}
+
+	window.requestAnimationFrame(animationFunc);
+}
+
+svgRectToObstacle = function(r){
+	return new RectangleObstacle(
+		parseFloat(r.getAttribute('x')),
+		parseFloat(r.getAttribute('y')),
+		parseFloat(r.getAttribute('width')),
+		parseFloat(r.getAttribute('height'))
+	);
+}
+
+svgCircleToObstacle = function(c){
+	return new CircleObstacle(
+		parseFloat(c.getAttribute('cx')),
+		parseFloat(c.getAttribute('cy')),
+		parseFloat(c.getAttribute('r'))
+	);
+}
+
+async function loadMap() {
+	return new Promise((resolve)=>{
+	
+	// load our map svg into the html dom.
+	// this way we can access the xml elements like
+	// rectangles and circles to create obstacles dynamically
+
+	let svg = document.createElement('object');
+	svg.setAttribute('data', '/images/map.svg');
+	document.querySelector('body').appendChild(svg);
+ 
+	svg.onload = () => {
+	
+		// hide the svg 
+		svg.setAttribute('style','display: none;');
+		
+		let svgDocument = svg.contentDocument,
+			border = svgDocument.querySelector('#border');
+		
+		let width = parseFloat(border.getAttribute('width')),
+			height = parseFloat(border.getAttribute('height'));
+		
+		// get the map boundary from #border in the svg
+		let mapBoundary = new MapBoundary(
+			0,
+			0,
+			width,
+			height
+		)
+
+		let obstacles = [];
+
+		// add all rectangles in the svg as obstacles
+		// don't count the border
+		let rectangles = svgDocument.
+			querySelectorAll('#map rect:not(#border)');
+		
+		for (let r of rectangles){
+			obstacles.push(svgRectToObstacle(r));
+		}
+
+		// add all circles in the svg as obstacles
+		let circles = svgDocument.querySelectorAll('#map circle');
+
+		for (let c of circles){	
+			obstacles.push(svgCircleToObstacle(c));
+		}
+		
+		window.stage = new Stage(mapBoundary, obstacles);
+	
+		resolve();
+	}
+
+	});
+}
+
+function handleKeyPresses(){
+	
+	let moveMap = { 
+		'a': { "dx": -1, "dy": 0},
+		's': { "dx": 0, "dy": 1},
+		'd': { "dx": 1, "dy": 0},
+		'w': { "dx": 0, "dy": -1}
+	},
+		dx = 0,
+		dy = 0;
+
+	for (let key of keysDown){
+		switch (key) {
+			case 'w':
+			case 'a':
+			case 's':
+			case 'd':	
+				dx += moveMap[key].dx;
+				dy += moveMap[key].dy;
+				// we need to recalculate where the player is
+				// looking when we move, even if the mouse is stable
+				let point =  getModelPoint(rawX, rawY);
+				stage.player.hover(point);	
+				break;
+			case 'r':
+				stage.player.manuallyReload();
+				keysDown.delete(key);
+				break;
+			case 'e':
+				stage.player.manuallyPickup();
+				keysDown.delete(key);
+				break;
+		}
+	}
+
+	stage.player.move(dx,dy);
+	
+}
+
+addKeydown = (event) => keysDown.add(event.key);
+
+removeKeydown = (event) => keysDown.delete(event.key);
+
+getModelPoint = function(x, y){
+	let canvas = document.getElementById('stage');
+
+	let canvasBounds = canvas.getBoundingClientRect(),	
+		canvasX = x - canvasBounds.left,
+		canvasY = y - canvasBounds.top;
+
+	let playerPos = stage.player.pos,
+		offsetX = canvas.width/2 - playerPos.x,
+		offsetY = canvas.height/2 - playerPos.y;
+
+	return new Pair(
+		canvasX - offsetX,
+		canvasY - offsetY
+	);
+}
+
+handleMousedown = (e) => clicking = true;
+handleMouseup = (e) => clicking = false;
+
+function handleFiring() {
+	if (clicking) {
+		stage.player.manuallyFire(
+			getModelPoint(rawX,rawY)
+		);
+	}
+}
+
+function hovering(e){
+	window.rawX = e.x;
+	window.rawY = e.y;
+
+	let point =  getModelPoint(rawX, rawY);
+	stage.player.hover(point);	
+}
+
+
+
